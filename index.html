@@ -1,0 +1,1127 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#000000">
+<title>SkyBlock</title>
+<style>
+@font-face { font-family: "MC"; src: url("assets/minecraft.ttf") format("truetype"); font-display: block; }
+
+:root {
+  --p: 2px;   /* GUI-Pixel */
+  --sp: 1.5px; /* Scoreboard-Pixel */
+  --S: 200px; /* Blockgröße */
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: #000; overflow: hidden; }
+body {
+  font-family: "MC", monospace; color: #fff;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  -webkit-font-smoothing: none; font-smooth: never;
+}
+img, .px { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* ---------- Text im Minecraft-Stil ---------- */
+.t { --tp: var(--p); font-size: calc(8 * var(--tp)); line-height: calc(9 * var(--tp)); white-space: pre-wrap; word-break: break-word; }
+.t span { text-shadow: var(--tp) var(--tp) 0 var(--sh); }
+.t span.b { text-shadow: var(--tp) 0 0 currentColor, var(--tp) var(--tp) 0 var(--sh), calc(2 * var(--tp)) var(--tp) 0 var(--sh); letter-spacing: var(--tp); }
+.t span.i { font-style: italic; }
+.t span.s { text-decoration: line-through; text-decoration-thickness: var(--tp); }
+
+.screen { position: fixed; inset: 0; display: none; }
+.screen.on { display: block; }
+
+/* ---------- Login ---------- */
+.dirt {
+  background:
+    linear-gradient(rgba(0,0,0,.72), rgba(0,0,0,.72)),
+    url("assets/tex/block/dirt.png") 0 0 / calc(32 * var(--p)) calc(32 * var(--p));
+  image-rendering: pixelated;
+}
+.mitte { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(6 * var(--p)); padding: 16px; text-align: center; }
+.feld {
+  width: min(100%, calc(200 * var(--p))); height: calc(20 * var(--p));
+  background: #000; color: #e0e0e0; outline: none;
+  border: var(--p) solid #a0a0a0;
+  font-family: "MC", monospace; font-size: calc(8 * var(--p)); padding: 0 calc(4 * var(--p));
+  user-select: text; -webkit-user-select: text;
+}
+.feld:focus { border-color: #fff; }
+.knopf {
+  width: min(100%, calc(200 * var(--p))); height: calc(20 * var(--p));
+  border: calc(3 * var(--p)) solid transparent;
+  border-image: url("assets/tex/gui/button.png") 3 fill / calc(3 * var(--p)) stretch;
+  image-rendering: pixelated;
+  background: none; color: #fff; cursor: pointer;
+  font-family: "MC", monospace; font-size: calc(8 * var(--p)); line-height: 1;
+  text-shadow: var(--p) var(--p) 0 #3f3f3f;
+}
+.knopf:hover, .knopf:focus-visible, .knopf:active { border-image-source: url("assets/tex/gui/button_highlighted.png"); outline: none; }
+.knopf.klein { width: auto; padding: 0 calc(8 * var(--p)); }
+.links { width: min(100%, calc(200 * var(--p))); text-align: left; }
+#kopf { width: calc(32 * var(--p)); height: calc(32 * var(--p)); display: none; }
+.lade { width: min(100%, calc(200 * var(--p))); height: calc(2 * var(--p)); background: #333; }
+.lade > div { height: 100%; width: 0; background: #80ff20; transition: width .4s; }
+
+/* ---------- Spiel ---------- */
+#spiel {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,.92) 100%),
+    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
+    url("assets/tex/block/deepslate.png") 0 0 / calc(48 * var(--p)) calc(48 * var(--p));
+  image-rendering: pixelated;
+}
+#buehne { position: absolute; inset: 0; touch-action: none; cursor: pointer; }
+.szene { position: absolute; left: 50%; top: 40%; width: var(--S); height: var(--S); margin: calc(var(--S) / -2) 0 0 calc(var(--S) / -2); perspective: calc(var(--S) * 5); }
+.schwebe { width: 100%; height: 100%; transform-style: preserve-3d; animation: schweben 3s ease-in-out infinite; }
+@keyframes schweben { 50% { transform: translateY(calc(var(--S) * -0.04)); } }
+.wuerfel {
+  position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+  transform: rotateX(-28deg) rotateY(-38deg); transition: transform .07s;
+}
+.wuerfel.treffer { transform: rotateX(-28deg) rotateY(-38deg) scale3d(.92,.92,.92); }
+.wuerfel.weg { transform: rotateX(-28deg) rotateY(-38deg) scale3d(0,0,0); transition: transform .12s ease-in; }
+.wuerfel.neu { animation: neu .28s cubic-bezier(.2,1.6,.5,1); }
+@keyframes neu { from { transform: rotateX(-28deg) rotateY(-38deg) scale3d(0,0,0); } }
+.seite { position: absolute; inset: 0; background-size: 100% 100%; image-rendering: pixelated; backface-visibility: hidden; }
+.seite img { position: absolute; inset: 0; width: 100%; height: 100%; display: none; mix-blend-mode: multiply; opacity: .9; }
+.vorne  { transform: translateZ(calc(var(--S) / 2)); filter: brightness(.8); }
+.hinten { transform: rotateY(180deg) translateZ(calc(var(--S) / 2)); filter: brightness(.8); }
+.rechts { transform: rotateY(90deg) translateZ(calc(var(--S) / 2)); filter: brightness(.6); }
+.links3 { transform: rotateY(-90deg) translateZ(calc(var(--S) / 2)); filter: brightness(.6); }
+.oben   { transform: rotateX(90deg) translateZ(calc(var(--S) / 2)); }
+.unten  { transform: rotateX(-90deg) translateZ(calc(var(--S) / 2)); filter: brightness(.5); }
+#tipp { position: absolute; left: 0; right: 0; top: calc(40% + var(--S) * .75); text-align: center; animation: blink 1.4s ease-in-out infinite; pointer-events: none; }
+@keyframes blink { 50% { opacity: .35; } }
+
+#hand {
+  position: absolute; right: -4%; bottom: calc(60 * var(--p)); width: min(42vw, 260px); aspect-ratio: 1;
+  background: center / contain no-repeat; image-rendering: pixelated;
+  transform-origin: 85% 95%; transform: rotate(-12deg); pointer-events: none; opacity: .95;
+}
+#hand.blockhand { transform: rotate(0deg) scale(.55); transform-origin: 70% 90%; }
+#hand.schlag { animation: schlag .2s ease-out; }
+@keyframes schlag { 40% { transform: rotate(-58deg) translate(-12%, -6%); } }
+
+/* Scoreboard */
+#board {
+  --tp: var(--sp); position: absolute; right: 6px; top: max(8px, env(safe-area-inset-top)); min-width: calc(110 * var(--sp));
+  pointer-events: none;
+}
+#board > div { background: rgba(0,0,0,.3); padding: 0 calc(2 * var(--sp)); }
+#board > div:first-child { background: rgba(0,0,0,.4); text-align: center; }
+
+/* Chat */
+#chat {
+  --tp: calc(var(--p) * .75); position: absolute; left: 4px; bottom: calc(66 * var(--p)); width: min(calc(100% - 8px), calc(320 * var(--p)));
+  display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none;
+}
+#chat > div { background: rgba(0,0,0,.5); padding: 0 calc(1 * var(--p)); transition: opacity 1s; }
+#chat > div.alt { opacity: 0; }
+
+/* Titel */
+#titel { position: absolute; left: 0; right: 0; top: 25%; text-align: center; pointer-events: none; opacity: 0; transition: opacity .5s; }
+#titel.on { opacity: 1; }
+#titel .gross { --tp: calc(var(--p) * 1.5); }
+#titel .sub { --tp: var(--p); margin-top: calc(4 * var(--p)); }
+
+/* HUD unten */
+#hud { position: absolute; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: calc(182 * var(--p)); }
+#aktion { --tp: calc(var(--p) * .75); text-align: center; margin-bottom: calc(5 * var(--p)); white-space: nowrap; }
+.reihe { display: flex; justify-content: space-between; height: calc(9 * var(--p)); margin-bottom: calc(1 * var(--p)); }
+.reihe > div { display: flex; }
+.reihe .icon { width: calc(9 * var(--p)); height: calc(9 * var(--p)); margin-right: calc(-1 * var(--p)); position: relative; }
+.reihe .icon img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.reihe .rechtsbuendig { flex-direction: row-reverse; }
+.reihe .rechtsbuendig .icon { margin-right: 0; margin-left: calc(-1 * var(--p)); }
+#xp { position: relative; height: calc(5 * var(--p)); background: url("assets/tex/gui/xp_bg.png") 0 0 / 100% 100%; image-rendering: pixelated; margin-bottom: calc(1 * var(--p)); }
+#xpfill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: url("assets/tex/gui/xp_progress.png") 0 0 / calc(182 * var(--p)) 100%; image-rendering: pixelated; }
+#level { position: absolute; left: 0; right: 0; bottom: calc(1 * var(--p)); text-align: center; color: #80ff20; display: none;
+  text-shadow: var(--p) 0 0 #000, calc(-1 * var(--p)) 0 0 #000, 0 var(--p) 0 #000, 0 calc(-1 * var(--p)) 0 #000; }
+#hotbar { position: relative; width: calc(182 * var(--p)); height: calc(22 * var(--p)); background: url("assets/tex/gui/hotbar.png") 0 0 / 100% 100%; image-rendering: pixelated; }
+#auswahl { position: absolute; top: calc(-1 * var(--p)); width: calc(24 * var(--p)); height: calc(23 * var(--p)); pointer-events: none; transition: left .1s; }
+.slot { position: absolute; top: calc(3 * var(--p)); width: calc(16 * var(--p)); height: calc(16 * var(--p)); cursor: pointer; }
+.slot .item, .islot .item { position: absolute; inset: 0; }
+.slot .anzahl, .islot .anzahl { position: absolute; right: calc(-1 * var(--p)); bottom: calc(-2 * var(--p)); pointer-events: none; }
+.slot.hupf .item { animation: hupf .25s; }
+@keyframes hupf { 40% { transform: scale(1.3); } }
+
+/* Items + Verzauberungsglanz */
+.item { background-size: 100% 100%; image-rendering: pixelated; }
+.item.ench::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: var(--m) 0 0 / 100% 100% no-repeat; mask: var(--m) 0 0 / 100% 100% no-repeat;
+  background: linear-gradient(120deg, transparent 0 25%, rgba(190,90,255,.6) 38%, transparent 52%, transparent 70%, rgba(190,90,255,.5) 82%, transparent 95%);
+  background-size: 300% 300%; animation: glanz 2.6s linear infinite; mix-blend-mode: screen;
+}
+@keyframes glanz { from { background-position: 100% 100%; } to { background-position: 0 0; } }
+
+/* Tooltip */
+.tooltip {
+  --tp: var(--p);
+  position: fixed; z-index: 30; max-width: min(calc(100vw - 12px), calc(220 * var(--p)));
+  background: rgba(16,0,16,.94); padding: calc(3 * var(--p)) calc(4 * var(--p));
+  border: var(--p) solid; border-image: linear-gradient(rgba(80,0,255,.4), rgba(40,0,127,.4)) 1;
+  outline: var(--p) solid rgba(16,0,16,.94);
+  pointer-events: none; display: none;
+}
+.tooltip .erste { margin-bottom: calc(2 * var(--p)); }
+
+/* Effekte */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+#fx .teil { position: absolute; image-rendering: pixelated; }
+#fx .flug { position: absolute; }
+#feuerwerk { position: fixed; inset: 0; pointer-events: none; z-index: 25; width: 100%; height: 100%; }
+
+/* Geschenk-Anzeige */
+#enthuellung { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; overflow-y: auto; }
+#enthuellung.on { display: flex; }
+#enthuellung .tooltip { position: relative; display: block; pointer-events: auto; max-width: min(100%, calc(230 * var(--p))); animation: auf .35s cubic-bezier(.2,1.5,.5,1); }
+@keyframes auf { from { transform: scale(.4); opacity: 0; } }
+.karte {
+  margin: calc(4 * var(--p)) auto calc(6 * var(--p)); width: calc(120 * var(--p)); aspect-ratio: 1.586; border-radius: calc(5 * var(--p));
+  background: linear-gradient(135deg, #0070d1 0%, #003791 55%, #00205b 100%);
+  box-shadow: 0 0 0 var(--p) rgba(255,255,255,.25) inset, 0 calc(3 * var(--p)) 0 rgba(0,0,0,.5);
+  position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: calc(6 * var(--p));
+}
+.karte::before { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.25) 45%, transparent 60%); background-size: 300% 100%; animation: glanz 3s linear infinite; }
+.karte .wert { --tp: calc(var(--p) * 2.5); align-self: flex-end; }
+.codebox {
+  margin: calc(2 * var(--p)) 0 calc(3 * var(--p)); padding: calc(4 * var(--p)); text-align: center;
+  background: #000; border: var(--p) solid #a0a0a0; user-select: all; -webkit-user-select: all; word-break: break-all;
+}
+.codebox span { letter-spacing: calc(var(--p) * 1); }
+.knopfreihe { display: flex; gap: calc(4 * var(--p)); margin-top: calc(6 * var(--p)); }
+.knopfreihe .knopf { flex: 1; }
+
+/* Name des gewählten Items über der Hotbar */
+#itemname { position: absolute; left: -50%; right: -50%; bottom: 100%; margin-bottom: calc(2 * var(--p)); text-align: center; opacity: 0; transition: opacity .4s; pointer-events: none; }
+#itemname.on { opacity: 1; transition: none; }
+
+/* Inventar */
+#inventar { position: fixed; inset: 0; z-index: 35; background: rgba(16,16,16,.78); display: none; flex-direction: column; align-items: center; justify-content: center; gap: calc(6 * var(--p)); }
+#inventar.on { display: flex; }
+#invgui { position: relative; width: calc(176 * var(--p)); height: calc(166 * var(--p)); background: url("assets/tex/gui/inventory.png") 0 0 / calc(256 * var(--p)) calc(256 * var(--p)); image-rendering: pixelated; }
+#invgui .titel { position: absolute; left: calc(97 * var(--p)); top: calc(6 * var(--p)); color: #404040; }
+#invkoerper { position: absolute; left: calc(26 * var(--p)); top: calc(10 * var(--p)); width: calc(49 * var(--p)); height: calc(66 * var(--p)); object-fit: contain; }
+.islot { position: absolute; width: calc(16 * var(--p)); height: calc(16 * var(--p)); cursor: pointer; }
+.islot .leer { position: absolute; inset: 0; width: 100%; height: 100%; }
+.islot::before { content: ""; position: absolute; inset: 0; }
+.islot:hover::before { background: rgba(255,255,255,.45); }
+.islot.gewaehlt::before { background: rgba(255,255,140,.6); box-shadow: 0 0 0 var(--p) #ffff55; }
+.tooltip { z-index: 50; }
+</style>
+</head>
+<body>
+
+<!-- Anmeldung -->
+<div id="anmeldung" class="screen on dirt">
+  <div class="mitte">
+    <div class="t" style="--tp: calc(var(--p) * 2)" data-mc="§6§lHYPIXEL §e§lSKYBLOCK"></div>
+    <div class="t" data-mc="§7Geburtstags-Server"></div>
+    <div style="height: calc(10 * var(--p))"></div>
+    <div class="t links" data-mc="§7Minecraft-Username"></div>
+    <input id="name" class="feld" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+    <div id="namefehler" class="t links" style="min-height: calc(9 * var(--p))"></div>
+    <button id="beitreten" class="knopf">Beitreten</button>
+    <div class="t" style="margin-top: calc(8 * var(--p))" data-mc="§8mc.hypixel.net"></div>
+  </div>
+</div>
+
+<!-- Verbinden / Laden -->
+<div id="verbinden" class="screen dirt">
+  <div class="mitte">
+    <img id="kopf" alt="">
+    <div id="verbtext" class="t"></div>
+    <div class="lade"><div id="ladebalken"></div></div>
+  </div>
+</div>
+
+<!-- Abgelehnt -->
+<div id="abgelehnt" class="screen dirt">
+  <div class="mitte">
+    <div class="t" data-mc="§7Verbindung zum Server fehlgeschlagen"></div>
+    <div class="t" data-mc="§cDu stehst nicht auf der Whitelist dieses Servers!"></div>
+    <div class="t" data-mc="§8Nur das Geburtstagskind kommt hier rein."></div>
+    <div style="height: calc(10 * var(--p))"></div>
+    <button id="zurueck" class="knopf">Zurück zur Serverliste</button>
+  </div>
+</div>
+
+<!-- Spiel -->
+<div id="spiel" class="screen">
+  <div id="buehne">
+    <div class="szene"><div class="schwebe">
+      <div id="wuerfel" class="wuerfel">
+        <div class="seite vorne"><img alt=""></div>
+        <div class="seite hinten"><img alt=""></div>
+        <div class="seite rechts"><img alt=""></div>
+        <div class="seite links3"><img alt=""></div>
+        <div class="seite oben"><img alt=""></div>
+        <div class="seite unten"><img alt=""></div>
+      </div>
+    </div></div>
+    <div id="tipp" class="t"></div>
+  </div>
+  <div id="hand"></div>
+  <div id="board" class="t"></div>
+  <div id="titel"><div class="t gross"></div><div class="t sub"></div></div>
+  <div id="chat" class="t"></div>
+  <div id="hud">
+    <div id="itemname" class="t"></div>
+    <div id="aktion" class="t"></div>
+    <div class="reihe"><div id="herzen"></div><div id="hunger" class="rechtsbuendig"></div></div>
+    <div id="xp"><div id="xpfill"></div><div id="level" class="t"></div></div>
+    <div id="hotbar"><img id="auswahl" src="assets/tex/gui/hotbar_selection.png" alt=""></div>
+  </div>
+</div>
+
+<div id="fx"></div>
+<canvas id="feuerwerk"></canvas>
+<div id="tooltip" class="tooltip t"></div>
+
+<div id="inventar">
+  <div id="invgui">
+    <div class="titel t">Crafting</div>
+    <img id="invkoerper" alt="">
+  </div>
+  <button id="invzu" class="knopf klein">Schließen</button>
+</div>
+
+<div id="enthuellung">
+  <div class="tooltip t">
+    <div id="geschenktext"></div>
+    <div class="knopfreihe">
+      <button id="kopieren" class="knopf">Code kopieren</button>
+      <button id="schliessen" class="knopf">Schließen</button>
+    </div>
+    <div class="knopfreihe" style="margin-top: calc(4 * var(--p))">
+      <button id="nochmal" class="knopf">Nochmal abbauen</button>
+    </div>
+  </div>
+</div>
+
+<script src="secret.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+const zufall = (a, b) => a + Math.random() * (b - a);
+
+// ---------- Minecraft-Farbcodes ----------
+const FARBEN = { 0:"#000000",1:"#0000AA",2:"#00AA00",3:"#00AAAA",4:"#AA0000",5:"#AA00AA",6:"#FFAA00",7:"#AAAAAA",8:"#555555",9:"#5555FF",a:"#55FF55",b:"#55FFFF",c:"#FF5555",d:"#FF55FF",e:"#FFFF55",f:"#FFFFFF" };
+function schatten(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const k = (v) => Math.floor(v / 4).toString(16).padStart(2, "0");
+  return "#" + k(n >> 16) + k((n >> 8) & 255) + k(n & 255);
+}
+function esc(s) { return s.replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+function mc(text, start = "f") {
+  let farbe = start, fett = false, kursiv = false, durch = false, html = "", puffer = "";
+  const raus = () => {
+    if (!puffer) return;
+    const c = FARBEN[farbe];
+    const kl = [fett && "b", kursiv && "i", durch && "s"].filter(Boolean).join(" ");
+    html += `<span class="${kl}" style="color:${c};--sh:${schatten(c)}">${esc(puffer)}</span>`;
+    puffer = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "§" && i + 1 < text.length) {
+      raus();
+      const k = text[++i].toLowerCase();
+      if (k in FARBEN) { farbe = k; fett = kursiv = durch = false; }
+      else if (k === "l") fett = true;
+      else if (k === "o") kursiv = true;
+      else if (k === "m") durch = true;
+      else if (k === "r") { farbe = start; fett = kursiv = durch = false; }
+    } else puffer += text[i];
+  }
+  raus();
+  return html;
+}
+document.querySelectorAll("[data-mc]").forEach((el) => (el.innerHTML = mc(el.dataset.mc)));
+
+// ---------- Größen ----------
+function groessen() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const p = Math.max(1, Math.min(3, Math.floor((w - 12) / 182), Math.floor(h / 260)));
+  const r = document.documentElement.style;
+  r.setProperty("--p", p + "px");
+  r.setProperty("--sp", (p >= 3 ? 2 : p * 0.75) + "px");
+  r.setProperty("--S", Math.round(Math.min(w * 0.5, h * 0.3, 280)) + "px");
+}
+groessen();
+addEventListener("resize", groessen);
+
+// ---------- Sound ----------
+const SOUNDS = ["dig1","dig2","dig3","dig4","cloth1","orb","levelup","pop","click","chestopen","pling","launch","blast","twinkle"];
+let audio = null;
+const puffer = {};
+function audioStart() {
+  if (audio) { audio.resume(); return; }
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+  for (const s of SOUNDS) {
+    fetch(`assets/snd/${s}.ogg`).then((r) => r.arrayBuffer()).then((b) => audio.decodeAudioData(b)).then((d) => (puffer[s] = d)).catch(() => {});
+  }
+}
+function ton(name, vol = 1, rate = 1) {
+  if (!audio || !puffer[name]) return;
+  const q = audio.createBufferSource();
+  const g = audio.createGain();
+  q.buffer = puffer[name]; q.playbackRate.value = rate; g.gain.value = vol;
+  q.connect(g).connect(audio.destination); q.start();
+}
+const vibrieren = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch {} };
+
+// ---------- Verschlüsselung ----------
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function entschluesseln(name) {
+  const G = window.GESCHENK, enc = new TextEncoder();
+  const basis = await crypto.subtle.importKey("raw", enc.encode(name.trim().toLowerCase()), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(G.salt), iterations: G.iter, hash: "SHA-256" }, basis, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const klar = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(G.iv) }, key, b64(G.ct));
+  return JSON.parse(new TextDecoder().decode(klar));
+}
+
+// ---------- Items ----------
+const T = "assets/tex/";
+const ITEMS = {
+  pick: { bild: T + "item/golden_pickaxe.png", ench: true, name: "§6Geburtstags-Stonk", lore: [
+    "§8Breaking Power 15", "", "§7Mining Speed: §a+1,500", "§7Mining Fortune: §a+15", "",
+    "§9Efficiency X", "§9Fortune XV", "",
+    "§6Item Ability: Mining Speed Boost §e§lRIGHT CLICK",
+    "§7Grants §a+300% §6Mining Speed §7for §a15s§7.", "",
+    "§6§lLEGENDARY PICKAXE"] },
+  cobble: { block: T + "block/cobblestone.png", name: "§fCobblestone", lore: ["§eRight-click to view recipes!", "", "§f§lCOMMON"] },
+  coal: { bild: T + "item/coal.png", name: "§fCoal", lore: ["§eRight-click to view recipes!", "", "§f§lCOMMON"] },
+  iron: { bild: T + "item/iron_ingot.png", name: "§fIron Ingot", lore: ["§eRight-click to view recipes!", "", "§f§lCOMMON"] },
+  gold: { bild: T + "item/gold_ingot.png", name: "§fGold Ingot", lore: ["§eRight-click to view recipes!", "", "§f§lCOMMON"] },
+  redstone: { bild: T + "item/redstone.png", name: "§fRedstone", lore: ["§eRight-click to view recipes!", "", "§f§lCOMMON"] },
+  diamond: { bild: T + "item/diamond.png", name: "§fDiamond", lore: ["§eRight-click to view recipes!", "", "§f§lCOMMON"] },
+  ediamond: { bild: T + "item/diamond.png", ench: true, name: "§aEnchanted Diamond", lore: ["§7Ein ziemlich seltener Fund.", "§7Fast so selten wie dein Geschenk.", "", "§eRight-click to view recipes!", "", "§a§lUNCOMMON"] },
+  menu: { bild: T + "item/nether_star.png", fest: true, name: "§aSkyBlock Menu §7(Click)", lore: [
+    "§7Öffnet dein Inventar mit allen", "§7Items, die du dabei hast.", "", "§eClick to open!"] },
+
+  // Custom-Items im Inventar
+  hyperion: { bild: T + "item/iron_sword.png", ench: true, name: "§dHeroic Hyperion §6✪✪✪✪✪", lore: [
+    "§7Damage: §c+260", "§7Strength: §c+150", "§7Ferocity: §c+30", "§7Intelligence: §a+350", "",
+    "§9Ultimate Wise V§9, Sharpness VII", "",
+    "§6Ability: Wither Impact §e§lRIGHT CLICK", "§7Teleports §a10 blocks §7ahead of you.", "§7Then implode, dealing §c10,000", "§7damage to nearby enemies.", "§8Mana Cost: §3150", "",
+    "§d§lMYTHIC DUNGEON SWORD"] },
+  terminator: { bild: T + "item/bow.png", ench: true, name: "§6Terminator", lore: [
+    "§7Damage: §c+310", "§7Strength: §c+50", "§7Crit Damage: §c+250%", "§7Bonus Attack Speed: §c+40%", "",
+    "§6Shortbow: Instantly shoots!", "§7Shoots §b3 §7arrows at once.", "§7Can damage endermen.", "",
+    "§6Ability: Salvation §e§lLEFT CLICK", "§7Can be cast after landing §63 §7hits.", "§7Shoot a beam, penetrating up", "§7to §e5 §7enemies.", "",
+    "§6§lLEGENDARY DUNGEON BOW"] },
+  aotv: { bild: T + "item/diamond_shovel.png", ench: true, name: "§5Aspect of the Void", lore: [
+    "§7Damage: §c+120", "§7Strength: §c+100", "",
+    "§6Ability: Instant Transmission §e§lRIGHT CLICK", "§7Teleport §a12 blocks §7ahead of you.", "§8Mana Cost: §345", "",
+    "§6Ability: Ether Transmission §e§lSNEAK RIGHT CLICK", "§7Teleport to your targeted block", "§7up to §a57 blocks §7away.", "§8Mana Cost: §3180", "",
+    "§5§lEPIC SWORD"] },
+  aote: { bild: T + "item/diamond_sword.png", name: "§9Aspect of the End", lore: [
+    "§7Damage: §c+100", "§7Strength: §c+100", "",
+    "§6Ability: Instant Transmission §e§lRIGHT CLICK", "§7Teleport §a8 blocks §7ahead of you and", "§7gain §a+50 §f✦ Speed §7for §a3 seconds§7.", "§8Mana Cost: §350", "",
+    "§9§lRARE SWORD"] },
+  midas: { bild: T + "item/golden_sword.png", name: "§6Midas' Sword", lore: [
+    "§6Ability: Greed", "§7The strength and damage bonus of", "§7this item is dependent on the", "§7price paid for it at the", "§5Dark Auction§7!", "",
+    "§6§lLEGENDARY SWORD"] },
+  juju: { bild: T + "item/bow.png", name: "§5Juju Shortbow", lore: [
+    "§6Shortbow: Instantly shoots!", "§7Hits §c3 §7mobs on impact.", "§7Can damage endermen.", "",
+    "§5§lEPIC BOW"] },
+  hook: { bild: T + "item/fishing_rod.png", name: "§aGrappling Hook", lore: [
+    "§7Travel around in style using", "§7this Grappling Hook.", "§82 Second Cooldown", "",
+    "§a§lUNCOMMON"] },
+  cookie: { bild: T + "item/cookie.png", name: "§6Booster Cookie", lore: [
+    "§7Consume to gain the §dCookie Buff", "§7for §b4 §7days:", "",
+    "§8‣ §7Ability to gain §bBits§7!", "§8‣ §b+15✯ §7Magic Find", "§8‣ §7Keep coins on death", "§8‣ §7Access §6/bazaar §7anywhere", "",
+    "§eRight-click to consume!", "",
+    "§6§lLEGENDARY"] },
+  hpb: { bild: T + "item/book.png", ench: true, name: "§5Hot Potato Book", lore: [
+    "§7Combine this book in an Anvil", "§7with a weapon or armor piece", "§7to gain a small but permanent", "§7stat boost!", "",
+    "§5§lEPIC"] },
+  edb: { block: T + "block/diamond_block.png", ench: true, name: "§9Enchanted Diamond Block", lore: [
+    "§eRight-click to view recipes!", "", "§9§lRARE"] },
+  kuchen: { bild: T + "item/cake.png", name: "§dGeburtstagskuchen §7(Year 15)", lore: [
+    "§7Gebacken zum §d15. Geburtstag", "§7für §b{name}§7.", "",
+    "§7Erst essen, wenn alle", "§7Blöcke abgebaut sind!", "",
+    "§c§lSPECIAL"] },
+  gutschein: { bild: T + "item/gift_card.png", ench: true, name: "§dPlayStation Store Guthaben", lore: [
+    "§7Wert: §620,00 €", "§7Gefunden in der Geburtstags-Mine.", "",
+    "§eClick to view code!", "",
+    "§d§lMYTHIC GESCHENK"] },
+};
+
+// Inventar: 0-8 Hotbar, 9-35 Rucksack, 36-39 Rüstung, 40 Nebenhand
+const INV_GROESSE = 41;
+function startInventar() {
+  const inv = new Array(INV_GROESSE).fill(null);
+  inv[0] = { key: "pick", n: 1 };
+  inv[8] = { key: "menu", n: 1 };
+  [["hyperion", 1], ["terminator", 1], ["aotv", 1], ["aote", 1], ["midas", 1], ["juju", 1], ["hook", 1]]
+    .forEach(([key, n], i) => (inv[9 + i] = { key, n }));
+  [["cookie", 3], ["hpb", 10], ["edb", 2], ["kuchen", 1]]
+    .forEach(([key, n], i) => (inv[18 + i] = { key, n }));
+  return inv;
+}
+
+// Ablauf der 15 Blöcke
+const BLOECKE = [
+  { tex: "stone", schlaege: 3, drop: "cobble", n: 1, xp: 4, coins: 3 },
+  { tex: "coal_ore", schlaege: 4, drop: "coal", n: 2, xp: 6, coins: 8 },
+  { tex: "iron_ore", schlaege: 4, drop: "iron", n: 1, xp: 8, coins: 12, nachricht: "Alles Gute zum 15.! Grab weiter, unten wartet was auf dich." },
+  { tex: "stone", schlaege: 3, drop: "cobble", n: 1, xp: 4, coins: 3 },
+  { tex: "gold_ore", schlaege: 4, drop: "gold", n: 2, xp: 10, coins: 16 },
+  { tex: "coal_ore", schlaege: 4, drop: "coal", n: 3, xp: 6, coins: 8 },
+  { tex: "redstone_ore", schlaege: 4, drop: "redstone", n: 4, xp: 9, coins: 10 },
+  { tex: "iron_ore", schlaege: 4, drop: "iron", n: 2, xp: 8, coins: 12, nachricht: "Schon über die Hälfte. Wie viel Magic Find hast du eigentlich?" },
+  { tex: "diamond_ore", schlaege: 5, drop: "diamond", n: 1, xp: 15, coins: 40, faehigkeit: true },
+  { tex: "stone", schlaege: 3, drop: "cobble", n: 2, xp: 4, coins: 3 },
+  { tex: "gold_ore", schlaege: 4, drop: "gold", n: 3, xp: 10, coins: 16 },
+  { tex: "redstone_ore", schlaege: 4, drop: "redstone", n: 5, xp: 9, coins: 10, nachricht: "Fast geschafft. Gleich kommt dein Geschenk!" },
+  { tex: "diamond_ore", schlaege: 5, drop: "diamond", n: 2, xp: 15, coins: 40 },
+  { tex: "diamond_ore", schlaege: 6, drop: "ediamond", n: 1, xp: 30, coins: 150, selten: true },
+  { tex: "gift", schlaege: 8, geschenk: true },
+];
+
+// ---------- Zustand ----------
+const zustand = { name: "", geschenk: null, block: 0, schlag: 0, speed: false, besetzt: false, aktiv: false, fertig: false,
+  inv: startInventar(), coins: 15000000, miningXp: 0, auswahl: 0 };
+
+// Legt Items ab: erst auf passende Stapel, dann in freie Hotbar-, dann Rucksack-Plätze
+function itemHinzu(key, n) {
+  const inv = zustand.inv;
+  let i = inv.findIndex((s, j) => j < 36 && s && s.key === key);
+  if (i < 0) i = inv.findIndex((s, j) => j < 9 && !s);
+  if (i < 0) i = inv.findIndex((s, j) => j < 36 && !s);
+  if (i < 0) return -1;
+  if (inv[i]) inv[i].n += n; else inv[i] = { key, n };
+  return i;
+}
+
+// ---------- Würfel ----------
+const wuerfel = $("#wuerfel");
+const seiten = [...wuerfel.querySelectorAll(".seite")];
+function blockSetzen(def) {
+  let seite, oben;
+  if (def.geschenk) { seite = T + "block/gift_side.png"; oben = T + "block/gift_top.png"; }
+  else { seite = oben = T + `block/${def.tex}.png`; }
+  seiten.forEach((s) => {
+    s.style.backgroundImage = `url(${s.classList.contains("oben") ? oben : seite})`;
+    s.querySelector("img").style.display = "none";
+  });
+  zustand.texturAktuell = seite;
+  wuerfel.classList.remove("weg", "neu");
+  void wuerfel.offsetWidth;
+  wuerfel.classList.add("neu");
+}
+function risse(stufe) {
+  seiten.forEach((s) => {
+    const img = s.querySelector("img");
+    if (stufe < 0) { img.style.display = "none"; return; }
+    img.src = T + `block/destroy_stage_${stufe}.png`;
+    img.style.display = "block";
+  });
+}
+
+// ---------- Partikel ----------
+const fx = $("#fx");
+const teile = [];
+function wuerfelMitte() {
+  const r = $(".szene").getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, g: r.width };
+}
+function partikel(anzahl, kraft) {
+  const m = wuerfelMitte();
+  const tx = m.g / 16;
+  for (let i = 0; i < anzahl; i++) {
+    const el = document.createElement("div");
+    el.className = "teil";
+    const groesse = tx * zufall(.6, 1.2);
+    el.style.width = el.style.height = groesse + "px";
+    el.style.backgroundImage = `url(${zustand.texturAktuell})`;
+    el.style.backgroundSize = `${tx * 8}px ${tx * 8}px`;
+    el.style.backgroundPosition = `${-Math.floor(Math.random() * 14) * tx / 2}px ${-Math.floor(Math.random() * 14) * tx / 2}px`;
+    if (teile.length > 120) teile.shift().el.remove();
+    fx.appendChild(el);
+    teile.push({ el, x: m.x + zufall(-m.g * .4, m.g * .4), y: m.y + zufall(-m.g * .4, m.g * .3),
+      vx: zufall(-kraft, kraft), vy: zufall(-kraft * 1.4, -kraft * .2), leben: zufall(.5, .9) });
+  }
+}
+let letzteZeit = performance.now();
+function schleife(t) {
+  const dt = Math.min(.05, (t - letzteZeit) / 1000); letzteZeit = t;
+  const schwer = window.innerHeight * 2.2;
+  for (let i = teile.length - 1; i >= 0; i--) {
+    const p = teile[i];
+    p.vy += schwer * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.leben -= dt;
+    p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    if (p.leben <= 0) { p.el.remove(); teile.splice(i, 1); }
+  }
+  feuerwerkSchritt(dt);
+  requestAnimationFrame(schleife);
+}
+requestAnimationFrame(schleife);
+
+// ---------- Item-Grafik ----------
+const blockIcons = {};
+function blockIcon(src) {
+  if (blockIcons[src]) return blockIcons[src];
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const x = c.getContext("2d");
+  x.imageSmoothingEnabled = false;
+  const img = new Image();
+  const p = new Promise((ok) => {
+    img.onload = () => {
+      const flaeche = (m, dunkel) => {
+        x.setTransform(...m); x.globalCompositeOperation = "source-over"; x.drawImage(img, 0, 0, 16, 16);
+        if (dunkel) { x.globalCompositeOperation = "source-atop"; x.fillStyle = `rgba(0,0,0,${dunkel})`; x.fillRect(0, 0, 16, 16); }
+      };
+      flaeche([2, 1, -2, 1, 32, 0], 0);
+      flaeche([2, 1, 0, 2, 0, 16], .25);
+      flaeche([2, -1, 0, 2, 32, 32], .45);
+      ok(c.toDataURL());
+    };
+  });
+  img.src = src;
+  blockIcons[src] = p;
+  return p;
+}
+async function itemBild(el, key) {
+  const it = ITEMS[key];
+  const url = it.block ? await blockIcon(it.block) : it.bild;
+  el.style.backgroundImage = `url(${url})`;
+  el.style.setProperty("--m", `url(${url})`);
+  el.classList.toggle("ench", !!it.ench);
+}
+
+// ---------- Hotbar ----------
+const hotbar = $("#hotbar");
+// Ein Slot-Element zeigt immer den Inhalt von zustand.inv[index]
+function slotFuellen(el, index) {
+  const s = zustand.inv[index];
+  const item = el.querySelector(".item");
+  if (s) {
+    if (item.dataset.key !== s.key) { itemBild(item, s.key); item.dataset.key = s.key; }
+    item.style.display = "block";
+  } else { item.style.display = "none"; item.dataset.key = ""; }
+  el.querySelector(".anzahl").innerHTML = s && s.n > 1 ? mc(String(s.n)) : "";
+}
+const slots = [...Array(9)].map((_, i) => {
+  const s = document.createElement("div");
+  s.className = "slot";
+  s.style.left = `calc(${3 + i * 20} * var(--p))`;
+  s.innerHTML = `<div class="item"></div><div class="anzahl t"></div>`;
+  hotbar.appendChild(s);
+  s.addEventListener("pointerenter", (e) => e.pointerType === "mouse" && tooltipZeigen(s, i));
+  s.addEventListener("pointerleave", (e) => e.pointerType === "mouse" && tooltipWeg());
+  s.addEventListener("pointerdown", (e) => { e.stopPropagation(); slotTippen(i); });
+  return s;
+});
+let namenTimer = 0;
+function auswaehlen(i, nameZeigen) {
+  zustand.auswahl = i;
+  $("#auswahl").style.left = `calc(${i * 20 - 1} * var(--p))`;
+  handZeigen();
+  const s = zustand.inv[i], el = $("#itemname");
+  clearTimeout(namenTimer);
+  if (nameZeigen && s) {
+    el.innerHTML = mc(ITEMS[s.key].name);
+    el.classList.add("on");
+    namenTimer = setTimeout(() => el.classList.remove("on"), 1800);
+  } else el.classList.remove("on");
+}
+function slotsZeichnen() {
+  slots.forEach((s, i) => slotFuellen(s, i));
+  handZeigen();
+}
+function slotTippen(i) {
+  ton("click", .25, 1.4);
+  tooltipWeg();
+  const s = zustand.inv[i];
+  if (s && s.key === "menu") { inventarAuf(); return; }
+  if (s && s.key === "gutschein") { enthuellen(); return; }
+  auswaehlen(i, true);
+}
+const tooltip = $("#tooltip");
+function itemTooltip(key) {
+  const it = ITEMS[key];
+  // {name} wird erst nach dem Login eingesetzt, damit der Name nicht im Quelltext steht
+  return `<div class="erste">${mc(it.name)}</div>` + it.lore.map((z) => `<div>${z ? mc(z.replace("{name}", zustand.name), "7") : "&nbsp;"}</div>`).join("");
+}
+function tooltipZeigen(s, index) {
+  const slot = zustand.inv[index];
+  if (!slot) return;
+  tooltip.innerHTML = itemTooltip(slot.key);
+  tooltip.style.display = "block";
+  const r = s.getBoundingClientRect(), t = tooltip.getBoundingClientRect();
+  let x = r.left + r.width / 2 - t.width / 2;
+  x = Math.max(6, Math.min(window.innerWidth - t.width - 6, x));
+  tooltip.style.left = x + "px";
+  tooltip.style.top = Math.max(6, r.top - t.height - 10) + "px";
+}
+function tooltipWeg() { tooltip.style.display = "none"; }
+
+// ---------- Herzen, Hunger, XP ----------
+for (let i = 0; i < 10; i++) {
+  $("#herzen").insertAdjacentHTML("beforeend", `<div class="icon"><img src="${T}gui/heart_container.png" alt=""><img src="${T}gui/heart_full.png" alt=""></div>`);
+  $("#hunger").insertAdjacentHTML("beforeend", `<div class="icon"><img src="${T}gui/food_empty.png" alt=""><img src="${T}gui/food_full.png" alt=""></div>`);
+}
+function levelSetzen(n) {
+  const l = $("#level");
+  l.style.display = n > 0 ? "block" : "none";
+  l.textContent = n;
+}
+async function xpFuellen(level) {
+  const f = $("#xpfill");
+  f.style.transition = "width .45s ease-out";
+  f.style.width = "100%";
+  await warte(470);
+  levelSetzen(level);
+  ton("orb", .5, zufall(.8, 1.2));
+  if (level < 15) { f.style.transition = "none"; f.style.width = "0"; }
+}
+
+// ---------- Aktionsleiste ----------
+let aktionTimer = 0;
+function aktion(mitte) {
+  const basis = (m) => `§c650/650❤   ${m}   §b415/415✎ Mana`;
+  $("#aktion").innerHTML = mc(basis(mitte || "§a215❈ Defense"));
+  clearTimeout(aktionTimer);
+  if (mitte) aktionTimer = setTimeout(() => aktion(), 2200);
+}
+
+// ---------- Scoreboard ----------
+function scoreboard(plus) {
+  const d = new Date();
+  const datum = `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${String(d.getFullYear()).slice(2)}`;
+  const zeilen = [
+    "§e§lSKYBLOCK",
+    `§7${datum} §8m15CB`,
+    "",
+    " Late Autumn 15th",
+    " §710:30pm §b☽",
+    " §7⏣ §bGeburtstags-Mine",
+    "",
+    `Purse: §6${zustand.coins.toLocaleString("en-US")}${plus ? ` §e(+${plus})` : ""}`,
+    "",
+    `Blöcke: §a${zustand.block}§7/15`,
+    "",
+    "§ewww.hypixel.net",
+  ];
+  $("#board").innerHTML = zeilen.map((z) => `<div>${z ? mc(z) : "&nbsp;"}</div>`).join("");
+}
+
+// ---------- Chat & Titel ----------
+function chat(text) {
+  const el = document.createElement("div");
+  el.innerHTML = mc(text) || "&nbsp;";
+  const c = $("#chat");
+  c.appendChild(el);
+  while (c.children.length > 10) c.firstChild.remove();
+  setTimeout(() => el.classList.add("alt"), 20000);
+}
+let titelTimer = 0;
+function titel(gross, sub, dauer = 2800) {
+  const t = $("#titel");
+  t.querySelector(".gross").innerHTML = mc(gross);
+  t.querySelector(".sub").innerHTML = mc(sub || "");
+  t.classList.add("on");
+  clearTimeout(titelTimer);
+  titelTimer = setTimeout(() => t.classList.remove("on"), dauer);
+}
+function pm(text) { chat(`§dFrom §7Clemens§7: ${text}`); }
+
+// ---------- Abbauen ----------
+let halten = false, halteTimer = 0;
+const buehne = $("#buehne");
+buehne.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  tooltipWeg();
+  if (!zustand.aktiv) return;
+  halten = true;
+  schlag();
+  clearInterval(halteTimer);
+  halteTimer = setInterval(() => halten && schlag(), 230);
+});
+const loslassen = () => { halten = false; clearInterval(halteTimer); };
+addEventListener("pointerup", loslassen);
+addEventListener("pointercancel", loslassen);
+buehne.addEventListener("contextmenu", (e) => e.preventDefault());
+
+function schlag() {
+  if (zustand.besetzt || !zustand.aktiv) return;
+  const def = BLOECKE[zustand.block];
+  $("#tipp").style.display = "none";
+  const hand = $("#hand");
+  hand.classList.remove("schlag"); void hand.offsetWidth; hand.classList.add("schlag");
+  wuerfel.classList.add("treffer");
+  setTimeout(() => wuerfel.classList.remove("treffer"), 70);
+  ton(def.geschenk ? "cloth1" : "dig" + (1 + Math.floor(Math.random() * 4)), .3, zufall(.5, .6));
+  vibrieren(12);
+  partikel(3, wuerfelMitte().g * 1.2);
+  const noetig = def.geschenk ? def.schlaege : (zustand.speed ? Math.ceil(def.schlaege / 2) : def.schlaege);
+  zustand.schlag++;
+  risse(Math.min(9, Math.floor((zustand.schlag / noetig) * 10)));
+  if (zustand.schlag >= noetig) abbauen(def);
+}
+
+async function abbauen(def) {
+  zustand.besetzt = true;
+  zustand.schlag = 0;
+  ton(def.geschenk ? "cloth1" : "dig" + (1 + Math.floor(Math.random() * 4)), 1, zufall(.8, .95));
+  vibrieren(45);
+  partikel(26, wuerfelMitte().g * 2.4);
+  wuerfel.classList.add("weg");
+  risse(-1);
+  zustand.block++;
+
+  if (def.geschenk) { finale(); return; }
+
+  dropFliegen(def);
+  zustand.coins += def.coins;
+  zustand.miningXp += def.xp;
+  scoreboard(def.coins);
+  aktion(`§3+${def.xp} Mining (${zustand.miningXp}/250)`);
+  xpFuellen(zustand.block);
+
+  if (def.selten) {
+    setTimeout(() => {
+      chat(`§6§lRARE DROP! ${ITEMS[def.drop].name} §b(+215% ✯ Magic Find)`);
+      ton("pling", .7, 1.6); setTimeout(() => ton("pling", .7, 2), 120);
+    }, 150);
+  }
+  if (def.nachricht) setTimeout(() => pm(def.nachricht), 900);
+
+  await warte(380);
+  if (def.faehigkeit) {
+    zustand.speed = true;
+    chat("§aYou used your §6Mining Speed Boost §aPickaxe Ability!");
+    ton("pling", .5, 1.2);
+  }
+  const naechster = BLOECKE[zustand.block];
+  if (naechster.geschenk) {
+    chat("");
+    chat("§e✦ Ein §c§lRed Gift §eist aufgetaucht! Mach es auf!");
+    titel("§c§lRED GIFT", "§eHau drauf!", 2200);
+    ton("chestopen", .6, 1.1);
+  }
+  blockSetzen(naechster);
+  zustand.besetzt = false;
+}
+
+function dropFliegen(def) {
+  const m = wuerfelMitte();
+  const index = itemHinzu(def.drop, def.n);
+  // Platz im Rucksack: Item fliegt zum Stern (Inventar)
+  const ziel = slots[index >= 0 && index < 9 ? index : 8];
+  const el = document.createElement("div");
+  el.className = "flug item";
+  const g = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--p")) * 16;
+  el.style.width = el.style.height = g * 1.4 + "px";
+  itemBild(el, def.drop);
+  fx.appendChild(el);
+  const start = { x: m.x - g * .7, y: m.y - g * .7 };
+  const sprung = { x: start.x + zufall(-m.g * .3, m.g * .3), y: start.y - m.g * .35 };
+  el.animate([
+    { transform: `translate(${start.x}px, ${start.y}px) scale(.3)` },
+    { transform: `translate(${sprung.x}px, ${sprung.y}px) scale(1) rotate(-10deg)`, offset: .45, easing: "ease-in" },
+    { transform: `translate(${sprung.x}px, ${sprung.y + m.g * .05}px) scale(1)`, offset: .62, easing: "ease-in" },
+    { transform: `translate(${ziel.getBoundingClientRect().left - g * .2}px, ${ziel.getBoundingClientRect().top - g * .2}px) scale(.7)` },
+  ], { duration: 950, easing: "ease-out", fill: "forwards" });
+  // Timer statt onfinish, damit das Item auch bei gedrosselten Animationen ankommt
+  setTimeout(() => {
+    el.remove();
+    slotsZeichnen();
+    ziel.classList.remove("hupf"); void ziel.offsetWidth; ziel.classList.add("hupf");
+    ton("pop", .45, zufall(1.4, 2));
+  }, 960);
+}
+
+async function finale() {
+  zustand.aktiv = false;
+  zustand.fertig = true;
+  scoreboard();
+  itemHinzu("gutschein", 1);
+  slotsZeichnen();
+  ton("levelup", .8, 1);
+  vibrieren([60, 60, 120]);
+  feuerwerk(6);
+  levelSetzen(15);
+  $("#xpfill").style.width = "100%";
+  titel("§d§lLEVEL 15!", "§7Alles Gute zum Geburtstag, Christopher!", 3500);
+  chat("§3§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+  chat(" §b§lSKILL LEVEL UP §3Geburtstag §8XIV➜§3XV");
+  chat("");
+  chat(" §a§lREWARDS");
+  chat("  §8+§a1 §7Jahr Lebenserfahrung");
+  chat("  §8+§620,00 € §7PlayStation Store Guthaben");
+  chat("§3§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+  await warte(1200);
+  chat("§d§lCRAZY RARE DROP! §dPlayStation Store Guthaben §b(+1500% ✯ Magic Find)");
+  ton("pling", .8, 1.2); setTimeout(() => ton("pling", .8, 1.6), 140); setTimeout(() => ton("pling", .8, 2), 280);
+  await warte(1300);
+  enthuellen();
+}
+
+function enthuellen() {
+  const g = zustand.geschenk;
+  const z = [
+    `<div class="erste">${mc("§dPlayStation Store Guthaben")}</div>`,
+    `<div>${mc("§8Geburtstags-Item")}</div>`,
+    `<div class="karte"><div>${mc("§fPlayStation Store")}</div><div class="t wert">${mc("§f§l" + g.wert.replace(",00", ""))}</div></div>`,
+    `<div>${mc("§7Wert: §6" + g.wert)}</div>`,
+    `<div>${mc("§7Gültig für: §b" + zustand.name)}</div>`,
+    `<div>&nbsp;</div>`,
+    `<div>${mc("§7Code:")}</div>`,
+    `<div class="codebox">${mc("§f" + g.code)}</div>`,
+    `<div>${mc("§7Einlösen: §fPlayStation Store §7➜ §fCode einlösen")}</div>`,
+    `<div>&nbsp;</div>`,
+    `<div>${mc("§7§o„Alles Gute zum 15. Geburtstag, Christopher!“")}</div>`,
+    `<div>${mc("§7§o– Clemens")}</div>`,
+    `<div>&nbsp;</div>`,
+    `<div>${mc("§d§lMYTHIC GESCHENK")}</div>`,
+  ];
+  $("#geschenktext").innerHTML = z.join("");
+  $("#enthuellung").classList.add("on");
+  ton("chestopen", .6, 1);
+}
+$("#kopieren").addEventListener("click", async () => {
+  ton("click", .4);
+  try { await navigator.clipboard.writeText(zustand.geschenk.code); $("#kopieren").textContent = "Kopiert!"; }
+  catch { $("#kopieren").textContent = "Bitte manuell kopieren"; }
+  setTimeout(() => ($("#kopieren").textContent = "Code kopieren"), 2000);
+});
+$("#schliessen").addEventListener("click", () => {
+  ton("click", .4);
+  $("#enthuellung").classList.remove("on");
+  if (!document.querySelector("#chat .geschenkhinweis")) {
+    chat("§eTipp: Das Geschenk liegt jetzt in deinem §aInventar §e(Stern rechts unten).");
+    $("#chat").lastChild.classList.add("geschenkhinweis");
+  }
+});
+$("#nochmal").addEventListener("click", () => location.reload());
+
+// ---------- Hand ----------
+async function handZeigen() {
+  const hand = $("#hand"), s = zustand.inv[zustand.auswahl];
+  if (!s) { hand.style.display = "none"; return; }
+  const it = ITEMS[s.key];
+  const url = it.block ? await blockIcon(it.block) : it.bild;
+  if (zustand.inv[zustand.auswahl] !== s) return;
+  hand.style.display = "block";
+  hand.style.backgroundImage = `url(${url})`;
+  hand.classList.toggle("blockhand", !!it.block);
+}
+
+// ---------- Inventar ----------
+const invGui = $("#invgui");
+const invSlots = [];
+function invSlotPos(i) {
+  if (i < 9) return [8 + i * 18, 142];
+  if (i < 36) return [8 + ((i - 9) % 9) * 18, 84 + Math.floor((i - 9) / 9) * 18];
+  if (i < 40) return [8, 8 + (i - 36) * 18];
+  return [77, 62];
+}
+const LEER_BILD = { 36: "slot_helmet", 37: "slot_chestplate", 38: "slot_leggings", 39: "slot_boots", 40: "slot_shield" };
+for (let i = 0; i < INV_GROESSE; i++) {
+  const [x, y] = invSlotPos(i);
+  const el = document.createElement("div");
+  el.className = "islot";
+  el.style.left = `calc(${x} * var(--p))`;
+  el.style.top = `calc(${y} * var(--p))`;
+  el.innerHTML = (LEER_BILD[i] ? `<img class="leer" src="${T}gui/${LEER_BILD[i]}.png" alt="">` : "") + `<div class="item"></div><div class="anzahl t"></div>`;
+  el.addEventListener("pointerenter", (e) => e.pointerType === "mouse" && invTooltip(i));
+  el.addEventListener("pointerleave", (e) => e.pointerType === "mouse" && zustand.gewaehlt == null && tooltipWeg());
+  el.addEventListener("pointerdown", (e) => { e.stopPropagation(); invTippen(i); });
+  invGui.appendChild(el);
+  invSlots.push(el);
+}
+zustand.gewaehlt = null;
+function invZeichnen() {
+  invSlots.forEach((el, i) => {
+    slotFuellen(el, i);
+    el.classList.toggle("gewaehlt", zustand.gewaehlt === i);
+    const leer = el.querySelector(".leer");
+    if (leer) leer.style.display = zustand.inv[i] ? "none" : "block";
+  });
+}
+function invTooltip(i) {
+  const s = zustand.inv[i];
+  if (!s) { tooltipWeg(); return; }
+  tooltip.innerHTML = itemTooltip(s.key);
+  tooltip.style.display = "block";
+  const r = invSlots[i].getBoundingClientRect(), t = tooltip.getBoundingClientRect();
+  let x = r.right + 6;
+  if (x + t.width > innerWidth - 6) x = Math.max(6, r.left + r.width / 2 - t.width / 2);
+  x = Math.min(x, innerWidth - t.width - 6);
+  let y = r.top - t.height - 6;
+  if (y < 6) y = Math.min(r.bottom + 6, innerHeight - t.height - 6);
+  tooltip.style.left = x + "px";
+  tooltip.style.top = Math.max(6, y) + "px";
+}
+// Antippen: Item aufnehmen, nochmal woanders antippen: ablegen oder tauschen
+function invTippen(i) {
+  ton("click", .25, 1.4);
+  const inv = zustand.inv, g = zustand.gewaehlt, s = inv[i];
+  if (g == null) {
+    if (!s) { tooltipWeg(); return; }
+    if (s.key === "gutschein") { inventarZu(); enthuellen(); return; }
+    invTooltip(i);
+    if (ITEMS[s.key].fest) return;
+    zustand.gewaehlt = i;
+  } else {
+    tooltipWeg();
+    zustand.gewaehlt = null;
+    const quelle = inv[g];
+    const erlaubt = !(s && ITEMS[s.key].fest) && !(i >= 36 && i < 40);
+    if (i !== g && erlaubt) {
+      if (s && s.key === quelle.key) { s.n += quelle.n; inv[g] = null; }
+      else { inv[i] = quelle; inv[g] = s; }
+      ton("pop", .3, 1.6);
+    }
+  }
+  invZeichnen();
+  slotsZeichnen();
+}
+function inventarAuf() {
+  if (!zustand.aktiv && !zustand.fertig) return;
+  tooltipWeg();
+  zustand.gewaehlt = null;
+  invZeichnen();
+  $("#invkoerper").src = `https://mc-heads.net/body/${encodeURIComponent(zustand.name)}/100`;
+  $("#inventar").classList.add("on");
+  ton("click", .3, 1);
+}
+function inventarZu() {
+  zustand.gewaehlt = null;
+  tooltipWeg();
+  $("#inventar").classList.remove("on");
+  slotsZeichnen();
+}
+$("#inventar").addEventListener("pointerdown", (e) => { if (e.target.id === "inventar" || e.target.id === "invzu") inventarZu(); });
+
+// ---------- Tastatur und Mausrad ----------
+addEventListener("keydown", (e) => {
+  if (!$("#spiel").classList.contains("on") || $("#enthuellung").classList.contains("on")) return;
+  if (e.key >= "1" && e.key <= "9") auswaehlen(+e.key - 1, true);
+  else if (e.key.toLowerCase() === "e") $("#inventar").classList.contains("on") ? inventarZu() : inventarAuf();
+  else if (e.key === "Escape") inventarZu();
+});
+addEventListener("wheel", (e) => {
+  if (!$("#spiel").classList.contains("on") || $("#inventar").classList.contains("on")) return;
+  auswaehlen((zustand.auswahl + (e.deltaY > 0 ? 1 : 8)) % 9, true);
+}, { passive: true });
+
+// ---------- Feuerwerk ----------
+const fw = $("#feuerwerk"), fwc = fw.getContext("2d");
+let funken = [];
+const FW_FARBEN = ["#FF5555", "#FFAA00", "#FFFF55", "#55FF55", "#55FFFF", "#5555FF", "#FF55FF", "#FFFFFF"];
+function feuerwerk(anzahl) {
+  fw.width = innerWidth; fw.height = innerHeight;
+  for (let k = 0; k < anzahl; k++) {
+    setTimeout(() => {
+      ton("launch", .5, zufall(.9, 1.1));
+      setTimeout(() => {
+        const x = zufall(.15, .85) * innerWidth, y = zufall(.12, .45) * innerHeight;
+        const f1 = FW_FARBEN[Math.floor(Math.random() * FW_FARBEN.length)];
+        const f2 = FW_FARBEN[Math.floor(Math.random() * FW_FARBEN.length)];
+        for (let i = 0; i < 70; i++) {
+          const w = Math.random() * Math.PI * 2, v = zufall(80, 260);
+          funken.push({ x, y, vx: Math.cos(w) * v, vy: Math.sin(w) * v, leben: zufall(1, 1.8), farbe: i % 2 ? f1 : f2 });
+        }
+        ton("blast", .6, zufall(.9, 1.1));
+        setTimeout(() => ton("twinkle", .4, zufall(.9, 1.1)), 600);
+      }, 450);
+    }, k * 550);
+  }
+}
+function feuerwerkSchritt(dt) {
+  if (!funken.length) return;
+  fwc.clearRect(0, 0, fw.width, fw.height);
+  const g = Math.max(2, parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--p")) * 1.5);
+  for (let i = funken.length - 1; i >= 0; i--) {
+    const f = funken[i];
+    f.vx *= .985; f.vy = f.vy * .985 + 120 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.leben -= dt;
+    if (f.leben <= 0) { funken.splice(i, 1); continue; }
+    fwc.globalAlpha = Math.min(1, f.leben * 1.5) * (Math.random() < .15 ? .3 : 1);
+    fwc.fillStyle = f.farbe;
+    fwc.fillRect(Math.round(f.x), Math.round(f.y), g, g);
+  }
+  if (!funken.length) fwc.clearRect(0, 0, fw.width, fw.height);
+}
+
+// ---------- Anmeldung ----------
+const zeige = (id) => document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === id));
+
+async function beitreten() {
+  audioStart();
+  ton("click", .4);
+  const name = $("#name").value.trim();
+  $("#namefehler").innerHTML = "";
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) {
+    $("#namefehler").innerHTML = mc("§cUngültiger Username (3–16 Zeichen, a–z, 0–9, _)");
+    return;
+  }
+  if (!window.crypto || !crypto.subtle) {
+    $("#namefehler").innerHTML = mc("§cDiese Seite muss über https geöffnet werden.");
+    return;
+  }
+  zeige("verbinden");
+  $("#kopf").style.display = "none";
+  $("#verbtext").innerHTML = mc("§7Verbinde mit dem Server …");
+  $("#ladebalken").style.width = "15%";
+  let geschenk = null;
+  const [ergebnis] = await Promise.allSettled([entschluesseln(name), warte(1100)]);
+  if (ergebnis.status === "fulfilled") geschenk = ergebnis.value;
+  if (!geschenk) { zeige("abgelehnt"); return; }
+
+  zustand.name = geschenk.name || name;
+  zustand.geschenk = geschenk;
+  const kopf = $("#kopf");
+  kopf.onload = () => (kopf.style.display = "block");
+  kopf.src = `https://mc-heads.net/avatar/${encodeURIComponent(zustand.name)}/64`;
+  $("#verbtext").innerHTML = mc("§7Melde an …");
+  $("#ladebalken").style.width = "45%";
+  await warte(800);
+  $("#verbtext").innerHTML = mc(`§aWillkommen, §f${zustand.name}§a!`);
+  $("#ladebalken").style.width = "80%";
+  await warte(900);
+  $("#verbtext").innerHTML = mc("§7Lade Terrain …");
+  $("#ladebalken").style.width = "100%";
+  await warte(700);
+  spielStart();
+}
+$("#beitreten").addEventListener("click", beitreten);
+$("#name").addEventListener("keydown", (e) => e.key === "Enter" && beitreten());
+$("#zurueck").addEventListener("click", () => { ton("click", .4); zeige("anmeldung"); });
+
+async function spielStart() {
+  zeige("spiel");
+  groessen();
+  aktion();
+  auswaehlen(0);
+  slotsZeichnen();
+  scoreboard();
+  blockSetzen(BLOECKE[0]);
+  $("#tipp").innerHTML = mc("§7Tippe auf den Block (oder halte gedrückt)");
+  chat("§7Sending to server mini15C...");
+  await warte(700);
+  chat("§eWelcome to Hypixel SkyBlock!");
+  await warte(700);
+  chat("§6§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+  chat(` §6§lHAPPY BIRTHDAY, §b§l${zustand.name}§6§l!`);
+  chat(" §7Du bist jetzt §a15§7. Zeit für ein Level-Up.");
+  chat(" §eBaue §a15 Blöcke §eab, dann gibt's dein Geschenk.");
+  chat(" §7Der §aStern §7unten rechts öffnet dein §aInventar§7.");
+  chat("§6§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+  titel("§6§lHAPPY BIRTHDAY!", "§eBaue 15 Blöcke ab");
+  ton("levelup", .5, 1.3);
+  zustand.aktiv = true;
+}
+</script>
+</body>
+</html>
